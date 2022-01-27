@@ -35,6 +35,10 @@ dependent_x_collection = population
 independent_y_collection = marriages
 
 
+def predict(a, b, x):
+    return (a * x) + b
+
+
 def main():
     assert len(dependent_x_collection) == len(independent_y_collection)
     collection_len = len(dependent_x_collection)
@@ -63,18 +67,37 @@ def main():
             lambda dependent_mean_difference_value: pow(dependent_mean_difference_value, 2),
             dependent_mean_difference
         )
+        independent_mean_difference_power = map(
+            lambda independent_mean_difference_value: pow(independent_mean_difference_value, 2),
+            independent_mean_difference
+        )
 
         diff_product_sum = sum(diff_product)
-        independent_mean_difference_power_sum = sum(dependent_mean_difference_power)
+        dependent_mean_difference_power_sum = sum(dependent_mean_difference_power)
+        independent_mean_difference_power_sum = sum(independent_mean_difference_power)
 
-        slope = diff_product_sum / independent_mean_difference_power_sum
+        slope = diff_product_sum / dependent_mean_difference_power_sum
         intercept = independent_mean - (dependent_mean * slope)
+
+        predicates = [predict(slope, intercept, y) for y in dependent_x_collection_dynamic]
+        predicate_mean_difference = [predicate - independent_mean for predicate in predicates]
+        predicate_mean_difference_pow = map(
+            lambda predicate_mean_difference_value: pow(predicate_mean_difference_value, 2),
+            predicate_mean_difference
+        )
+        predicate_mean_diffrence_pow_sum = sum(predicate_mean_difference_pow)
+        determinant = predicate_mean_diffrence_pow_sum / independent_mean_difference_power_sum
 
         logger.debug(f'iteration: {i}')
         logger.debug(f'diff_product_sum: {diff_product_sum}')
         logger.debug(f'independent_mean_difference_power_sum: {independent_mean_difference_power_sum}')
         logger.debug(f'slope: {slope}')
         logger.debug(f'intercept: {intercept}')
+        logger.debug(f'R^2: {determinant}')
+
+        predict_for = 2900000
+        predicate = predict(slope, intercept, predict_for)
+        logger.debug(f'predicate: {predicate}')
         print()
 
 
