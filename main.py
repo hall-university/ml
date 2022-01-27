@@ -1,4 +1,5 @@
 import logging.config
+import math
 from statistics import mean
 
 
@@ -33,6 +34,13 @@ marriages = [13599, 10294, 10911, 4875, 11405, 17361, 24924, 4822, 11287, 6135, 
 
 dependent_x_collection = population
 independent_y_collection = marriages
+
+
+class ModelResult:
+    def __init__(self, slope, intercept, determinant):
+        self._slope = slope
+        self._intercept = intercept
+        self._determinant = determinant
 
 
 def predict(a, b, x):
@@ -79,28 +87,128 @@ def main():
         slope = diff_product_sum / dependent_mean_difference_power_sum
         intercept = independent_mean - (dependent_mean * slope)
 
-        predicates = [predict(slope, intercept, y) for y in dependent_x_collection_dynamic]
+        predicates = [predict(slope, intercept, x) for x in dependent_x_collection_dynamic]
         predicate_mean_difference = [predicate - independent_mean for predicate in predicates]
         predicate_mean_difference_pow = map(
             lambda predicate_mean_difference_value: pow(predicate_mean_difference_value, 2),
             predicate_mean_difference
         )
-        predicate_mean_diffrence_pow_sum = sum(predicate_mean_difference_pow)
-        determinant = predicate_mean_diffrence_pow_sum / independent_mean_difference_power_sum
+        predicate_mean_difference_pow_sum = sum(predicate_mean_difference_pow)
+        determinant = predicate_mean_difference_pow_sum / independent_mean_difference_power_sum
 
-        logger.debug(f'iteration: {i}')
-        logger.debug(f'diff_product_sum: {diff_product_sum}')
-        logger.debug(f'independent_mean_difference_power_sum: {independent_mean_difference_power_sum}')
-        logger.debug(f'slope: {slope}')
-        logger.debug(f'intercept: {intercept}')
-        logger.debug(f'R^2: {determinant}')
+        logger.info(f'iteration: {i}')
+        logger.info(f'diff_product_sum: {diff_product_sum}')
+        logger.info(f'independent_mean_difference_power_sum: {independent_mean_difference_power_sum}')
+        logger.info(f'slope: {slope}')
+        logger.info(f'intercept: {intercept}')
+        logger.info(f'R^2: {determinant}')
 
         predict_for = 2900000
         predicate = predict(slope, intercept, predict_for)
-        logger.debug(f'predicate: {predicate}')
+        logger.info(f'predicate: {predicate}')
         print()
 
 
+def count_slope(dependent_collection, independent_collection, dependent_mean, independent_mean):
+    merged_collection = list(zip(dependent_collection, independent_collection))
+    return (
+        sum([(dependent - dependent_mean) * (independent - independent_mean) for dependent, independent in merged_collection]) /  # noqa
+        sum([pow((dependent - dependent_mean), 2) for dependent, _ in merged_collection])
+    )
+
+
+def count_intercept(slope, dependent_mean, independent_mean):
+    return independent_mean - (slope * dependent_mean)
+
+
+def count_determinant(slope, intercept, independent_mean, dependent_collection, independent_collection):
+    return (
+        sum([pow(predict(slope, intercept, x) - independent_mean, 2) for x in dependent_collection]) /
+        sum([pow(y - independent_mean, 2) for y in independent_collection])
+    )
+
+
+def get_dynamic_collection(data, break_point):
+    return data[:break_point]
+
+
+def main_v2():
+    assert len(dependent_x_collection) == len(independent_y_collection)
+    collection_len = len(dependent_x_collection)
+
+    # Start from the second element, to prevent incorrect calculations
+    for i in range(1, collection_len):
+        break_point = i + 1
+
+        dependent_x_collection_dynamic = get_dynamic_collection(
+            dependent_x_collection,
+            break_point
+        )
+        independent_y_collection_dynamic = get_dynamic_collection(
+            independent_y_collection,
+            break_point
+        )
+
+        dependent_mean = mean(
+            dependent_x_collection_dynamic
+        )
+        independent_mean = mean(
+            independent_y_collection_dynamic
+        )
+
+        slope = count_slope(
+            dependent_x_collection_dynamic,
+            independent_y_collection_dynamic,
+            dependent_mean,
+            independent_mean
+        )
+        intercept = count_intercept(
+            slope,
+            dependent_mean,
+            independent_mean
+        )
+        determinant = count_determinant(
+            slope,
+            intercept,
+            independent_mean,
+            dependent_x_collection_dynamic,
+            independent_y_collection_dynamic
+        )
+
+        logger.info(f'iteration: {i}')
+        logger.info(f'slope: {slope}')
+        logger.info(f'intercept: {intercept}')
+        logger.info(f'R^2: {determinant}')
+
+        predict_for = 2900000
+        predicate = math.floor(predict(slope, intercept, predict_for))
+        logger.info(f'predicate: {predicate}')
+        print()
+
+
+def cli():
+    print('1. Predict value\n2. Train model\n3. Predict during training\n-- Anything else to close')
+    try:
+        option = int(input('Select option: '))
+        match option:
+            case 1:
+                print('predict')
+            case 2:
+                print('train')
+            case 3:
+                print('predict and train')
+            case _:
+                raise Exception('Exit')
+    except:
+        exit(1)
+
+
+def runner():
+    while True:
+        cli()
+
+
 if __name__ == '__main__':
-    main()
-# https://www.statystyczny.pl/regresja-liniowa/
+    runner()
+    # main()
+    # main_v2()
