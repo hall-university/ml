@@ -1,6 +1,7 @@
 import logging.config
 import math
 from statistics import mean
+from typing import Optional
 
 
 logging.config.dictConfig({
@@ -38,75 +39,12 @@ independent_y_collection = marriages
 
 class ModelResult:
     def __init__(self, slope, intercept, determinant):
-        self._slope = slope
-        self._intercept = intercept
-        self._determinant = determinant
+        self.slope = slope
+        self.intercept = intercept
+        self.determinant = determinant
 
 
-def predict(a, b, x):
-    return (a * x) + b
-
-
-def main():
-    assert len(dependent_x_collection) == len(independent_y_collection)
-    collection_len = len(dependent_x_collection)
-
-    for i in range(1, collection_len):
-        break_point = i + 1
-
-        dependent_x_collection_dynamic = dependent_x_collection[:break_point]
-        independent_y_collection_dynamic = independent_y_collection[:break_point]
-
-        dependent_mean = mean(dependent_x_collection_dynamic)
-        independent_mean = mean(independent_y_collection_dynamic)
-
-        dependent_mean_difference = [
-            dependent - dependent_mean for dependent in dependent_x_collection_dynamic
-        ]
-        independent_mean_difference = [
-            independent - independent_mean for independent in independent_y_collection_dynamic
-        ]
-
-        diff_product = map(
-            lambda mean_difference_tuple: mean_difference_tuple[0] * mean_difference_tuple[1],
-            zip(dependent_mean_difference, independent_mean_difference)
-        )
-        dependent_mean_difference_power = map(
-            lambda dependent_mean_difference_value: pow(dependent_mean_difference_value, 2),
-            dependent_mean_difference
-        )
-        independent_mean_difference_power = map(
-            lambda independent_mean_difference_value: pow(independent_mean_difference_value, 2),
-            independent_mean_difference
-        )
-
-        diff_product_sum = sum(diff_product)
-        dependent_mean_difference_power_sum = sum(dependent_mean_difference_power)
-        independent_mean_difference_power_sum = sum(independent_mean_difference_power)
-
-        slope = diff_product_sum / dependent_mean_difference_power_sum
-        intercept = independent_mean - (dependent_mean * slope)
-
-        predicates = [predict(slope, intercept, x) for x in dependent_x_collection_dynamic]
-        predicate_mean_difference = [predicate - independent_mean for predicate in predicates]
-        predicate_mean_difference_pow = map(
-            lambda predicate_mean_difference_value: pow(predicate_mean_difference_value, 2),
-            predicate_mean_difference
-        )
-        predicate_mean_difference_pow_sum = sum(predicate_mean_difference_pow)
-        determinant = predicate_mean_difference_pow_sum / independent_mean_difference_power_sum
-
-        logger.info(f'iteration: {i}')
-        logger.info(f'diff_product_sum: {diff_product_sum}')
-        logger.info(f'independent_mean_difference_power_sum: {independent_mean_difference_power_sum}')
-        logger.info(f'slope: {slope}')
-        logger.info(f'intercept: {intercept}')
-        logger.info(f'R^2: {determinant}')
-
-        predict_for = 2900000
-        predicate = predict(slope, intercept, predict_for)
-        logger.info(f'predicate: {predicate}')
-        print()
+model_result: Optional[ModelResult] = None
 
 
 def count_slope(dependent_collection, independent_collection, dependent_mean, independent_mean):
@@ -123,7 +61,7 @@ def count_intercept(slope, dependent_mean, independent_mean):
 
 def count_determinant(slope, intercept, independent_mean, dependent_collection, independent_collection):
     return (
-        sum([pow(predict(slope, intercept, x) - independent_mean, 2) for x in dependent_collection]) /
+        sum([pow(((slope * x) + intercept) - independent_mean, 2) for x in dependent_collection]) /
         sum([pow(y - independent_mean, 2) for y in independent_collection])
     )
 
@@ -132,71 +70,93 @@ def get_dynamic_collection(data, break_point):
     return data[:break_point]
 
 
-def main_v2():
+def train(dependent_x_collection, independent_y_collection, break_point, iteration):
+    dependent_x_collection_dynamic = get_dynamic_collection(
+        dependent_x_collection,
+        break_point
+    )
+    independent_y_collection_dynamic = get_dynamic_collection(
+        independent_y_collection,
+        break_point
+    )
+
+    dependent_mean = mean(
+        dependent_x_collection_dynamic
+    )
+    independent_mean = mean(
+        independent_y_collection_dynamic
+    )
+
+    slope = count_slope(
+        dependent_x_collection_dynamic,
+        independent_y_collection_dynamic,
+        dependent_mean,
+        independent_mean
+    )
+    intercept = count_intercept(
+        slope,
+        dependent_mean,
+        independent_mean
+    )
+    determinant = count_determinant(
+        slope,
+        intercept,
+        independent_mean,
+        dependent_x_collection_dynamic,
+        independent_y_collection_dynamic
+    )
+
+    logger.info(f'iteration: {iteration}')
+    logger.info(f'slope: {slope}')
+    logger.info(f'intercept: {intercept}')
+    logger.info(f'R^2: {determinant}')
+
+    global model_result
+    model_result = ModelResult(slope, intercept, determinant)
+
+    return iteration, slope, intercept, determinant
+
+
+def predict(a, b, x):
+    result = math.floor((a * x) + b)
+    logger.info(f'predicate: {result}')
+    print()
+    return result
+
+
+def main_runner(option: int, predict_for: Optional[int] = None):
     assert len(dependent_x_collection) == len(independent_y_collection)
     collection_len = len(dependent_x_collection)
 
     # Start from the second element, to prevent incorrect calculations
     for i in range(1, collection_len):
         break_point = i + 1
-
-        dependent_x_collection_dynamic = get_dynamic_collection(
-            dependent_x_collection,
-            break_point
-        )
-        independent_y_collection_dynamic = get_dynamic_collection(
-            independent_y_collection,
-            break_point
+        iteration, slope, intercept, determinant = train(
+            dependent_x_collection, independent_y_collection, break_point, i
         )
 
-        dependent_mean = mean(
-            dependent_x_collection_dynamic
-        )
-        independent_mean = mean(
-            independent_y_collection_dynamic
-        )
-
-        slope = count_slope(
-            dependent_x_collection_dynamic,
-            independent_y_collection_dynamic,
-            dependent_mean,
-            independent_mean
-        )
-        intercept = count_intercept(
-            slope,
-            dependent_mean,
-            independent_mean
-        )
-        determinant = count_determinant(
-            slope,
-            intercept,
-            independent_mean,
-            dependent_x_collection_dynamic,
-            independent_y_collection_dynamic
-        )
-
-        logger.info(f'iteration: {i}')
-        logger.info(f'slope: {slope}')
-        logger.info(f'intercept: {intercept}')
-        logger.info(f'R^2: {determinant}')
-
-        predict_for = 2900000
-        predicate = math.floor(predict(slope, intercept, predict_for))
-        logger.info(f'predicate: {predicate}')
-        print()
+        if option == 3:
+            predict(slope, intercept, predict_for)
 
 
 def cli():
+    global model_result
+
     print('1. Predict value\n2. Train model\n3. Predict during training\n-- Anything else to close')
     try:
         option = int(input('Select option: '))
         match option:
             case 1:
-                print('predict')
+                if model_result:
+                    predict_for = int(input('Predict for: '))
+                    predict(model_result.slope, model_result.intercept, predict_for)
+                else:
+                    print('\tTrain model first! Option no. 2')
             case 2:
-                print('train')
+                main_runner(option)
             case 3:
-                print('predict and train')
+                predict_for = int(input('Predict for: '))
+                main_runner(option, predict_for)
             case _:
                 raise Exception('Exit')
     except:
@@ -210,5 +170,3 @@ def runner():
 
 if __name__ == '__main__':
     runner()
-    # main()
-    # main_v2()
